@@ -14639,6 +14639,8 @@ var BlockType = __webpack_require__(/*! ./block-type */ "./src/extension-support
 // TODO: change extension spec so that library info, including extension ID, can be collected through static methods
 
 
+var Scratch3TestBlocks = __webpack_require__(/*! ../extensions/scratch3_test */ "./src/extensions/scratch3_test/index.js");
+
 var Scratch3PenBlocks = __webpack_require__(/*! ../extensions/scratch3_pen */ "./src/extensions/scratch3_pen/index.js");
 
 var Scratch3WeDo2Blocks = __webpack_require__(/*! ../extensions/scratch3_wedo2 */ "./src/extensions/scratch3_wedo2/index.js");
@@ -14660,6 +14662,7 @@ var Scratch3Ev3Blocks = __webpack_require__(/*! ../extensions/scratch3_ev3 */ ".
 var Scratch3MakeyMakeyBlocks = __webpack_require__(/*! ../extensions/scratch3_makeymakey */ "./src/extensions/scratch3_makeymakey/index.js");
 
 var builtinExtensions = {
+  test: Scratch3TestBlocks,
   pen: Scratch3PenBlocks,
   wedo2: Scratch3WeDo2Blocks,
   music: Scratch3MusicBlocks,
@@ -21003,6 +21006,53 @@ function () {
 }();
 
 module.exports = Scratch3Speech2TextBlocks;
+
+/***/ }),
+
+/***/ "./src/extensions/scratch3_test/index.js":
+/*!***********************************************!*\
+  !*** ./src/extensions/scratch3_test/index.js ***!
+  \***********************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var Scratch3TestBlocks =
+/*#__PURE__*/
+function () {
+  function Scratch3TestBlocks() {
+    _classCallCheck(this, Scratch3TestBlocks);
+  }
+
+  _createClass(Scratch3TestBlocks, [{
+    key: "getInfo",
+    value: function getInfo() {
+      return {
+        id: 'test',
+        name: 'Test',
+        blocks: [{
+          opcode: 'ts',
+          blockType: Scratch.BlockType.COMMAND,
+          text: 'hello'
+        }]
+      };
+    }
+  }, {
+    key: "ts",
+    value: function ts() {
+      console.log('ts');
+    }
+  }]);
+
+  return Scratch3TestBlocks;
+}();
+
+module.exports = Scratch3TestBlocks;
 
 /***/ }),
 

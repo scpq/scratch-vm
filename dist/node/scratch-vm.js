@@ -21014,7 +21014,7 @@ module.exports = Scratch3Speech2TextBlocks;
   !*** ./src/extensions/scratch3_test/index.js ***!
   \***********************************************/
 /*! no static exports found */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -21022,11 +21022,25 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
+//const ArgumentType = require('../../extension-support/argument-type');
+var BlockType = __webpack_require__(/*! ../../extension-support/block-type */ "./src/extension-support/block-type.js"); //const Cast = require('../../util/cast');
+//const Clone = require('../../util/clone');
+//const Color = require('../../util/color');
+
+
+var formatMessage = __webpack_require__(/*! format-message */ "format-message"); //const MathUtil = require('../../util/math-util');
+//const RenderedTarget = require('../../sprites/rendered-target');
+//const log = require('../../util/log');
+//const StageLayering = require('../../engine/stage-layering');
+
+
 var Scratch3TestBlocks =
 /*#__PURE__*/
 function () {
-  function Scratch3TestBlocks() {
+  function Scratch3TestBlocks(runtime) {
     _classCallCheck(this, Scratch3TestBlocks);
+
+    this.runtime = runtime;
   }
 
   _createClass(Scratch3TestBlocks, [{
@@ -21034,18 +21048,26 @@ function () {
     value: function getInfo() {
       return {
         id: 'test',
-        name: 'Test',
+        name: formatMessage({
+          id: 'test.categoryName',
+          default: 'Test',
+          description: 'Test extension'
+        }),
         blocks: [{
-          opcode: 'ts',
-          blockType: Scratch.BlockType.COMMAND,
-          text: 'hello'
-        }]
+          opcode: 'test',
+          blockType: BlockType.COMMAND,
+          text: formatMessage({
+            id: 'test.test',
+            default: 'Test',
+            description: 'Test block'
+          })
+        }],
+        menus: {}
       };
     }
   }, {
-    key: "ts",
-    value: function ts() {
-      console.log('ts');
+    key: "test",
+    value: function test() {//
     }
   }]);
 

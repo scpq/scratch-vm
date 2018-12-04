@@ -3339,13 +3339,15 @@ function () {
     }
   }, {
     key: "wait",
-    value: function wait(args) {
-      var duration = Math.max(0, 1000 * Cast.toNumber(args.DURATION));
-      return new Promise(function (resolve) {
-        setTimeout(function () {
-          resolve();
-        }, duration);
-      });
+    value: function wait(args, util) {
+      if (util.stackTimerNeedsInit()) {
+        var duration = Math.max(0, 1000 * Cast.toNumber(args.DURATION));
+        util.startStackTimer(duration);
+        this.runtime.requestRedraw();
+        util.yield();
+      } else if (!util.stackTimerFinished()) {
+        util.yield();
+      }
     }
   }, {
     key: "if",
@@ -6976,6 +6978,8 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var Thread = __webpack_require__(/*! ./thread */ "./src/engine/thread.js");
+
+var Timer = __webpack_require__(/*! ../util/timer */ "./src/util/timer.js");
 /**
  * @fileoverview
  * Interface provided to block primitive functions for interacting with the
@@ -7012,11 +7016,54 @@ function () {
 
 
   _createClass(BlockUtility, [{
-    key: "yield",
+    key: "stackTimerFinished",
 
+    /**
+     * Check the stack timer and return a boolean based on whether it has finished or not.
+     * @return {boolean} - true if the stack timer has finished.
+     */
+    value: function stackTimerFinished() {
+      var timeElapsed = this.stackFrame.timer.timeElapsed();
+
+      if (timeElapsed < this.stackFrame.duration) {
+        return false;
+      }
+
+      return true;
+    }
+    /**
+     * Check if the stack timer needs initialization.
+     * @return {boolean} - true if the stack timer needs to be initialized.
+     */
+
+  }, {
+    key: "stackTimerNeedsInit",
+    value: function stackTimerNeedsInit() {
+      return !this.stackFrame.timer;
+    }
+    /**
+     * Create and start a stack timer
+     * @param {number} duration - a duration in milliseconds to set the timer for.
+     */
+
+  }, {
+    key: "startStackTimer",
+    value: function startStackTimer(duration) {
+      if (this.nowObj) {
+        this.stackFrame.timer = new Timer(this.nowObj);
+      } else {
+        this.stackFrame.timer = new Timer();
+      }
+
+      this.stackFrame.timer.start();
+      this.stackFrame.duration = duration;
+    }
     /**
      * Set the thread to yield.
      */
+
+  }, {
+    key: "yield",
     value: function _yield() {
       this.thread.status = Thread.STATUS_YIELD;
     }
@@ -7166,6 +7213,27 @@ function () {
     key: "runtime",
     get: function get() {
       return this.sequencer.runtime;
+    }
+    /**
+     * Use the runtime's currentMSecs value as a timestamp value for now
+     * This is useful in some cases where we need compatibility with Scratch 2
+     * @type {function}
+     */
+
+  }, {
+    key: "nowObj",
+    get: function get() {
+      var _this = this;
+
+      if (this.runtime) {
+        return {
+          now: function now() {
+            return _this.runtime.currentMSecs;
+          }
+        };
+      }
+
+      return null;
     }
     /**
      * The stack frame used by loop and other blocks to track internal state.
@@ -10142,7 +10210,9 @@ function (_EventEmitter) {
      * @type {!number}
      */
 
-    _this.currentStepTime = null;
+    _this.currentStepTime = null; // Set an intial value for this.currentMSecs
+
+    _this.updateCurrentMSecs();
     /**
      * Whether any primitive has requested a redraw.
      * Affects whether `Sequencer.stepThreads` will yield
@@ -10150,6 +10220,7 @@ function (_EventEmitter) {
      * Reset on every frame.
      * @type {boolean}
      */
+
 
     _this.redrawRequested = false; // Register all given block packages.
 
@@ -12182,6 +12253,17 @@ function (_EventEmitter) {
     value: function disableProfiling() {
       this.profiler = null;
     }
+    /**
+     * Update a millisecond timestamp value that is saved on the Runtime.
+     * This value is helpful in certain instances for compatibility with Scratch 2,
+     * which sometimes uses a `currentMSecs` timestamp value in Interpreter.as
+     */
+
+  }, {
+    key: "updateCurrentMSecs",
+    value: function updateCurrentMSecs() {
+      this.currentMSecs = Date.now();
+    }
   }], [{
     key: "STAGE_WIDTH",
     get: function get() {
@@ -12663,7 +12745,11 @@ function () {
      */
     value: function stepThreads() {
       // Work time is 75% of the thread stepping interval.
-      var WORK_TIME = 0.75 * this.runtime.currentStepTime; // Start counting toward WORK_TIME.
+      var WORK_TIME = 0.75 * this.runtime.currentStepTime; // For compatibility with Scatch 2, update the millisecond clock
+      // on the Runtime once per step (see Interpreter.as in Scratch 2
+      // for original use of `currentMSecs`)
+
+      this.runtime.updateCurrentMSecs(); // Start counting toward WORK_TIME.
 
       this.timer.start(); // Count of active threads.
 
@@ -12733,6 +12819,7 @@ function () {
           if (activeThread.stack.length === 0 || activeThread.status === Thread.STATUS_DONE) {
             // Finished with this thread.
             stoppedThread = true;
+            this.runtime.updateCurrentMSecs();
           }
         } // We successfully ticked once. Prevents running STATUS_YIELD_TICK
         // threads on the next tick.
@@ -24985,15 +25072,18 @@ var fetchBitmapCanvas_ = function fetchBitmapCanvas_(costume, runtime, rotationC
       costume.rotationCenterY = rotationCenter[1];
     }
 
-    costume.bitmapResolution = 2;
+    costume.bitmapResolution = 2; // Clean up the costume object
+
+    delete costume.textLayerMD5;
+    delete costume.textLayerAsset;
     return {
       canvas: canvas,
       rotationCenter: rotationCenter,
       // True if the asset matches the base layer; false if it required adjustment
       assetMatchesBase: scale === 1 && !textImageElement
     };
-  }).finally(function () {
-    // Clean up the costume object
+  }).catch(function () {
+    // Clean up the text layer properties if it fails to load
     delete costume.textLayerMD5;
     delete costume.textLayerAsset;
   });
@@ -26592,6 +26682,12 @@ function () {
      */
 
     this._ghost = 0;
+    /**
+     * Store a flag that allows the preview to be forced transparent.
+     * @type {number}
+     */
+
+    this._forceTransparentPreview = false;
   }
 
   _createClass(Video, [{
@@ -26681,7 +26777,7 @@ function () {
 
       if (this._drawable) {
         this.runtime.renderer.updateDrawableProperties(this._drawable, {
-          ghost: ghost
+          ghost: this._forceTransparentPreview ? 100 : ghost
         });
       }
     }
@@ -26718,7 +26814,7 @@ function () {
 
       if (!this._renderPreviewFrame) {
         renderer.updateDrawableProperties(this._drawable, {
-          ghost: this._ghost,
+          ghost: this._forceTransparentPreview ? 100 : this._ghost,
           visible: true
         });
 
@@ -26751,6 +26847,24 @@ function () {
 
         this._renderPreviewFrame();
       }
+    }
+  }, {
+    key: "postData",
+
+    /**
+     * Method implemented by all IO devices to allow external changes.
+     * The only change available externally is hiding the preview, used e.g. to
+     * prevent drawing the preview into project thumbnails.
+     * @param {object} - data passed to this IO device.
+     * @property {boolean} forceTransparentPreview - whether the preview should be forced transparent.
+     */
+    value: function postData(_ref2) {
+      var forceTransparentPreview = _ref2.forceTransparentPreview;
+      this._forceTransparentPreview = forceTransparentPreview; // Setting the ghost to the current value will pick up the forceTransparentPreview
+      // flag and override the current ghost. The complexity is to prevent blocks
+      // from overriding forceTransparentPreview
+
+      this.setPreviewGhost(this._ghost);
     }
   }, {
     key: "videoReady",
@@ -34132,6 +34246,8 @@ var Timer =
 /*#__PURE__*/
 function () {
   function Timer() {
+    var nowObj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : Timer.nowObj;
+
     _classCallCheck(this, Timer);
 
     /**
@@ -34139,6 +34255,12 @@ function () {
      * Updated when calling `timer.start`.
      */
     this.startTime = 0;
+    /**
+     * Used to pass custom logic for determining the value for "now",
+     * which is sometimes useful for compatibility with Scratch 2
+     */
+
+    this.nowObj = nowObj;
   }
   /**
    * Disable use of self.performance for now as it results in lower performance
@@ -34155,7 +34277,7 @@ function () {
      * @returns {number} ms elapsed since 1 January 1970 00:00:00 UTC.
      */
     value: function time() {
-      return Timer.nowObj.now();
+      return this.nowObj.now();
     }
     /**
      * Returns a time accurate relative to other times produced by this function.
@@ -34168,7 +34290,7 @@ function () {
   }, {
     key: "relativeTime",
     value: function relativeTime() {
-      return Timer.nowObj.now();
+      return this.nowObj.now();
     }
     /**
      * Start a timer for measuring elapsed time,
@@ -34178,12 +34300,12 @@ function () {
   }, {
     key: "start",
     value: function start() {
-      this.startTime = Timer.nowObj.now();
+      this.startTime = this.nowObj.now();
     }
   }, {
     key: "timeElapsed",
     value: function timeElapsed() {
-      return Timer.nowObj.now() - this.startTime;
+      return this.nowObj.now() - this.startTime;
     }
   }], [{
     key: "USE_PERFORMANCE",

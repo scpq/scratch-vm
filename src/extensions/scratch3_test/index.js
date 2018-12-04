@@ -1,4 +1,4 @@
-class Scratch3Test {
+class Scratch3TestBlocks {
   constructor() {}
   getInfo() {
     return {
@@ -17,4 +17,4 @@ class Scratch3Test {
     console.log('ts');
   }
 }
-module.exports = Scratch3Test;
+module.exports = Scratch3TestBlocks;
